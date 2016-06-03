@@ -1,3 +1,9 @@
+/*
+ * Implementation of memory pool in c with a doubly list list, with O(1) alloc and O(1) free
+ * Works properly in case of double free
+ * Size of pool is a runtime argumemt
+ */
+
 #include<stdio.h>
 #include<stdlib.h>
 
@@ -38,7 +44,7 @@ void init(unsigned int unitSize, unsigned int maxiumObjects){
                 pool->freeMemoryBlock = current;
             }
         }
-        else{
+        else {
             printf("Error allocating %d bytes\n", pool->blockSize);
             exit(1);
         }
@@ -47,6 +53,12 @@ void init(unsigned int unitSize, unsigned int maxiumObjects){
     }
 }
 
+// return pointer is of type void *. Cast it to whatever you intend.
+// Its the programmer's responsibility that size of target type should be <= unitSize
+// Note that this is highly vulnerable of buffer overflow attacks.
+// Consider a scenario where we cast the return pointer to a struct that
+// contains a char buffer. If we dont fill the buffer carefully, our
+// entire free list can be corrupted, and hence the program can crash
 void* alloc() {
     if (pool->freeMemoryBlock == NULL) {
         return NULL;

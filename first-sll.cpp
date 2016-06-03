@@ -1,9 +1,21 @@
+/*
+ * Implementation of memory pool with a singly linked list, with O(1) alloc and O(1) free
+ * Doen't work properly in case of double free
+ * Size of pool is a template argumemt
+ */
+
 #include<iostream>
 #include<cstdlib>
 #include<tuple>
 #include<stdio.h>
 
 using namespace std;
+
+// naming definitions I followed:
+// chunkSize = size of a single object + size of struct Addr
+// blockSize = size of entire memory pool = chunkSize * MAX_LIVE_OBJECTS
+// maxAddress = the maximum address in a memory pool
+// freeMemoryBlock = head of the linked list of free Chunks
 
 struct Addr {
     struct Addr* next;
@@ -27,12 +39,10 @@ class MemoryPool {
 
 template<class T, int MAX_LIVE_OBJECTS>
 MemoryPool<T,MAX_LIVE_OBJECTS>::MemoryPool() : freeMemoryBlock(NULL) {
-    if (memoryBlock != NULL) {
-        for (int i = 0; i < MAX_LIVE_OBJECTS; i++) {
-            struct Addr * current = (struct Addr *) ((char *) memoryBlock + i * (sizeof(struct Addr) + sizeof(T)));
-            current->next = freeMemoryBlock;
-            freeMemoryBlock = current;
-        }
+    for (int i = 0; i < MAX_LIVE_OBJECTS; i++) {
+        struct Addr * current = (struct Addr *) ((char *) memoryBlock + i * (sizeof(struct Addr) + sizeof(T)));
+        current->next = freeMemoryBlock;
+        freeMemoryBlock = current;
     }
 }
 
@@ -78,6 +88,8 @@ void MemoryPool<T, MAX_LIVE_OBJECTS>::my_free(T * ptr) {
             current->next = freeMemoryBlock;
             freeMemoryBlock = current;
         }
+    } else{
+        cerr << "Invalid Address for free\n";
     }
 }
 
@@ -88,7 +100,7 @@ class testclass {
 template<class T, int MAX_LIVE_OBJECTS>
 void MemoryPool<T, MAX_LIVE_OBJECTS>::printFreeBlocks() {
     struct Addr * temp = freeMemoryBlock;
-    printf("[ ");
+    printf("free Addresses: [ ");
     while (temp != NULL) {
         printf("%p ", temp);
         temp = temp->next;

@@ -1,3 +1,9 @@
+/*
+ * Implementation of memory pool with a doubly linked list, with O(1) alloc and O(1) free
+ * Works properly in case of double free
+ * Size of pool is a template argumemt
+ */
+
 #include<iostream>
 #include<cstdlib>
 #include<tuple>
@@ -84,6 +90,8 @@ void MemoryPool<T, MAX_LIVE_OBJECTS>::my_free(T * ptr) {
             }
             freeMemoryBlock = current;
         }
+    } else{
+        cerr << "Invalid address for free\n";
     }
 }
 
