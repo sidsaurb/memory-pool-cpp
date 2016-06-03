@@ -5,12 +5,13 @@
 
 using namespace std;
 
+#define INVALID_ADDRESS 1
+
 struct Addr {
     struct Addr* next;
-    struct Addr* prev;
 };
 
-template<class T, unsigned int MAX_LIVE_OBJECTS>
+template<class T, int MAX_LIVE_OBJECTS>
 class MemoryPool {
     private:
         char memoryBlock[MAX_LIVE_OBJECTS * (sizeof(struct Addr) + sizeof(T))];
@@ -26,25 +27,23 @@ class MemoryPool {
         void my_free(T * ptr);
 };
 
-template<class T, unsigned int MAX_LIVE_OBJECTS>
+template<class T, int MAX_LIVE_OBJECTS>
 MemoryPool<T,MAX_LIVE_OBJECTS>::MemoryPool() : freeMemoryBlock(NULL) {
-    for (unsigned int i = 0; i < MAX_LIVE_OBJECTS; i++) {
-        struct Addr * current = (struct Addr *) ((char *) memoryBlock + i * (sizeof(struct Addr) + sizeof(T)));
-        current->prev = NULL;
-        current->next = freeMemoryBlock;
-        if (freeMemoryBlock != NULL){
-            freeMemoryBlock->prev = current;
+    if (memoryBlock != NULL) {
+        for (int i = 0; i < MAX_LIVE_OBJECTS; i++) {
+            struct Addr * current = (struct Addr *) ((char *) memoryBlock + i * (sizeof(struct Addr) + sizeof(T)));
+            current->next = freeMemoryBlock;
+            freeMemoryBlock = current;
         }
-        freeMemoryBlock = current;
     }
 }
 
-template<class T, unsigned int MAX_LIVE_OBJECTS>
+template<class T, int MAX_LIVE_OBJECTS>
 MemoryPool<T, MAX_LIVE_OBJECTS>::~MemoryPool(){
     free(memoryBlock);
 }
 
-template<class T, unsigned int MAX_LIVE_OBJECTS>
+template<class T, int MAX_LIVE_OBJECTS>
 std::tuple<T*, bool> MemoryPool<T, MAX_LIVE_OBJECTS>::alloc() {
     if (freeMemoryBlock == NULL) {
         std::tuple<T*, bool> ret (NULL, false);
@@ -53,54 +52,51 @@ std::tuple<T*, bool> MemoryPool<T, MAX_LIVE_OBJECTS>::alloc() {
         struct Addr * temp = freeMemoryBlock;
         T* allocatedObject = (T*)((char*) freeMemoryBlock + sizeof(struct Addr));
         freeMemoryBlock = freeMemoryBlock->next;
-        // maintain dll property
-        if (freeMemoryBlock != NULL) {
-            freeMemoryBlock->prev = NULL;
-        }
-        // set the next and prev of currently allocated chunk to NULL
+        // set the next of currently allocated chunk to INVALID_ADDRESS
         // will be used to check the problem of double freeing
-        temp->next = NULL;
-        temp->prev = NULL;
+        temp->next = (struct Addr *) INVALID_ADDRESS;
         std::tuple<T*, bool> ret (allocatedObject, true);
         return ret;
     }
 }
 
-// this free implementation takes care of double freeing
-template<class T, unsigned int MAX_LIVE_OBJECTS>
+// free in this case will work with O(1) and also handles the case of double freeing.
+// I have defined a special address INVALID_ADDRESS = 1, and assigned it to the next of
+// all the allocated address chunks. Thus we only free those chunks which have
+// INVALID_ADDRESS as its next pointer
+//
+// Another hack that is coming to my mind is I can maintain a pointer to the last
+// element of freeMemoryBlock in the MemoryPool class itself, and use it to check
+// double freeing
+template<class T, int MAX_LIVE_OBJECTS>
 void MemoryPool<T, MAX_LIVE_OBJECTS>::my_free(T * ptr) {
     struct Addr* current = (struct Addr *) ptr - 1;
     // check if its a valid address
     if ((unsigned long) ptr < maxAddress &&
             (unsigned long) ptr > (unsigned long) memoryBlock &&
             (((unsigned long) current - (unsigned long) memoryBlock) % chunkSize == 0) ) {
-        // check if address is being double freed
-        if (current->next == NULL && current->prev == NULL && freeMemoryBlock != current) {
+        // check if the address is not being double freed
+        if (current->next == (struct Addr*) INVALID_ADDRESS) {
             current->next = freeMemoryBlock;
-            current->prev = NULL;
-            // maintain dll property
-            if (freeMemoryBlock != NULL){
-                freeMemoryBlock->prev = current;
-            }
             freeMemoryBlock = current;
         }
     }
 }
 
-template<class T, unsigned int MAX_LIVE_OBJECTS>
+class testclass {
+    int i;
+};
+
+template<class T, int MAX_LIVE_OBJECTS>
 void MemoryPool<T, MAX_LIVE_OBJECTS>::printFreeBlocks() {
     struct Addr * temp = freeMemoryBlock;
-    printf("free Addresses: [ ");
+    printf("[ ");
     while (temp != NULL) {
         printf("%p ", temp);
         temp = temp->next;
     }
     printf("]\n");
 }
-
-class testclass {
-    int i;
-};
 
 int main() {
     MemoryPool<testclass, 5> mem;

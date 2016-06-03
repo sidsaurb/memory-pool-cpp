@@ -64,7 +64,8 @@ std::tuple<T*, bool> MemoryPool<T, MAX_LIVE_OBJECTS>::alloc() {
 // of them cannot be handelled. To overcome this scenario we need to parse the free list
 // which will give us a complexity of O(n) where n is its size. Other thing we can do is
 // we can make the Addr struct doubly linked list. In this case the complexity will still
-// be O(1). Refer first-dll.cpp
+// be O(1). Refer first-dll.cpp. Also refer first-sll-hack.cpp, in which I abused some
+// conventions to make this work with singly linked list also
 template<class T, int MAX_LIVE_OBJECTS>
 void MemoryPool<T, MAX_LIVE_OBJECTS>::my_free(T * ptr) {
     struct Addr* current = (struct Addr *) ptr - 1;
@@ -103,13 +104,13 @@ int main() {
     bool success;
     std::tuple<testclass*, bool> x;
 
-    cout << "Give command \"x\" to allocate a chunk and \"y <hex addr>\" to free (T*) addr\n\n";
+    cout << "Give command \"y\" to allocate a chunk and \"z <hex addr>\" to free (T*) addr\n\n";
 
     mem.printFreeBlocks();
 
     while (true) {
         scanf("%c", &c);
-        if (c == 'x') {
+        if (c == 'y') {
             x = mem.alloc();
             addr = std::get<0>(x);
             success = std::get<1>(x);
@@ -119,11 +120,14 @@ int main() {
             } else {
                 cout << "Allocation failed: No free space\n";
             }
-        } else if(c == 'y') {
+        } else if(c == 'z') {
             unsigned long x;
             cin >> hex >> x;
             mem.my_free((testclass *) x);
             mem.printFreeBlocks();
         }
+        //else {
+        //   cout << "Give command \"y\" to allocate a chunk and \"z <hex addr>\" to free (T*) addr\n\n";
+        //}
     }
 }

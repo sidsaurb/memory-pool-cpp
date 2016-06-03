@@ -33,8 +33,8 @@ MemoryPool<T>::MemoryPool(unsigned int MAX_LIVE_OBJECTS) :
     chunkSize(sizeof(struct Addr) + sizeof(T))
 {
     blockSize = chunkSize * MAX_LIVE_OBJECTS;
-    maxAddress = (unsigned long) memoryBlock + blockSize;
     memoryBlock = (void *) malloc(blockSize);
+    maxAddress = (unsigned long) memoryBlock + blockSize;
     if (memoryBlock != NULL) {
         for (unsigned int i = 0; i < MAX_LIVE_OBJECTS; i++) {
             struct Addr * current = (struct Addr *) ((char *) memoryBlock + i * (sizeof(struct Addr) + sizeof(T)));
@@ -122,13 +122,13 @@ int main() {
     bool success;
     std::tuple<testclass*, bool> x;
 
-    cout << "Give command \"x\" to allocate a chunk and \"y <hex addr>\" to free (T*) addr\n\n";
+    cout << "Give command \"y\" to allocate a chunk and \"z <hex addr>\" to free (T*) addr\n\n";
 
     mem.printFreeBlocks();
 
     while (true) {
         scanf("%c", &c);
-        if (c == 'x') {
+        if (c == 'y') {
             x = mem.alloc();
             addr = std::get<0>(x);
             success = std::get<1>(x);
@@ -138,11 +138,14 @@ int main() {
             } else {
                 cout << "Allocation failed: No free space\n";
             }
-        } else if(c == 'y') {
+        } else if(c == 'z') {
             unsigned long x;
             cin >> hex >> x;
             mem.my_free((testclass *) x);
             mem.printFreeBlocks();
         }
+        //else {
+        //    cout << "Give command \"y\" to allocate a chunk and \"z <hex addr>\" to free (T*) addr\n\n";
+        //}
     }
 }
