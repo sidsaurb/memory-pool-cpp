@@ -1,6 +1,6 @@
 /*
- * Implementation of memory pool with a doubly linked list, with O(1) alloc and O(1) free
- * Works properly in case of double free
+ * Implementation of memory pool in c++, with O(1) alloc and O(1) free
+ * Doen't work properly in case of double free
  * Size of pool is a template argumemt
  */
 
@@ -11,17 +11,22 @@
 
 using namespace std;
 
+// naming definitions I followed:
+// chunkSize = size of a single object + size of struct Addr
+// blockSize = size of entire memory pool = chunkSize * MAX_LIVE_OBJECTS
+// maxAddress = the maximum address in a memory pool
+// freeMemoryBlock = head of the linked list of free Chunks
+
 struct Addr {
     struct Addr* next;
-    struct Addr* prev;
 };
 
-template<class T, unsigned int MAX_LIVE_OBJECTS>
+template<class T, int MAX_LIVE_OBJECTS>
 class MemoryPool {
     private:
-        char memoryBlock[MAX_LIVE_OBJECTS * (sizeof(struct Addr) + sizeof(T))];
-        int chunkSize = sizeof(struct Addr) + sizeof(T);
-        int blockSize = MAX_LIVE_OBJECTS * chunkSize;
+        int chunkSize = sizeof(T);
+        int blockSize = MAX_LIVE_OBJECTS * sizeof(T);
+        char memoryBlock[MAX_LIVE_OBJECTS * sizeof(T)];
         unsigned long maxAddress = (unsigned long) memoryBlock + blockSize;
         struct Addr* freeMemoryBlock;
     public:
@@ -31,65 +36,50 @@ class MemoryPool {
         void my_free(T * ptr);
 };
 
-template<class T, unsigned int MAX_LIVE_OBJECTS>
+template<class T, int MAX_LIVE_OBJECTS>
 MemoryPool<T,MAX_LIVE_OBJECTS>::MemoryPool() : freeMemoryBlock(NULL) {
-    for (unsigned int i = 0; i < MAX_LIVE_OBJECTS; i++) {
-        struct Addr * current = (struct Addr *) ((char *) memoryBlock + i * (sizeof(struct Addr) + sizeof(T)));
-        current->prev = NULL;
+    for (int i = 0; i < MAX_LIVE_OBJECTS; i++) {
+        struct Addr * current = (struct Addr *) ((char *) memoryBlock + i * chunkSize);
         current->next = freeMemoryBlock;
-        if (freeMemoryBlock != NULL){
-            freeMemoryBlock->prev = current;
-        }
         freeMemoryBlock = current;
     }
 }
 
-template<class T, unsigned int MAX_LIVE_OBJECTS>
+template<class T, int MAX_LIVE_OBJECTS>
 std::tuple<T*, bool> MemoryPool<T, MAX_LIVE_OBJECTS>::alloc() {
     if (freeMemoryBlock == NULL) {
         std::tuple<T*, bool> ret (NULL, false);
         return ret;
     } else {
-        struct Addr * temp = freeMemoryBlock;
-        T* allocatedObject = (T*)((char*) freeMemoryBlock + sizeof(struct Addr));
+        T* allocatedObject = (T*)(freeMemoryBlock);
         freeMemoryBlock = freeMemoryBlock->next;
-        // maintain dll property
-        if (freeMemoryBlock != NULL) {
-            freeMemoryBlock->prev = NULL;
-        }
-        // set the next and prev of currently allocated chunk to NULL
-        // will be used to check the problem of double freeing
-        temp->next = NULL;
-        temp->prev = NULL;
         std::tuple<T*, bool> ret (allocatedObject, true);
         return ret;
     }
 }
 
-// this free implementation takes care of double freeing
-template<class T, unsigned int MAX_LIVE_OBJECTS>
+// free works with O(1) but has problem of double freeing
+template<class T, int MAX_LIVE_OBJECTS>
 void MemoryPool<T, MAX_LIVE_OBJECTS>::my_free(T * ptr) {
-    struct Addr* current = (struct Addr *) ptr - 1;
+    struct Addr* current = (struct Addr*) ptr;
     // check if its a valid address
     if ((unsigned long) ptr < maxAddress &&
-            (unsigned long) ptr > (unsigned long) memoryBlock &&
+            (unsigned long) ptr >= (unsigned long) memoryBlock &&
             (((unsigned long) current - (unsigned long) memoryBlock) % chunkSize == 0) ) {
-        // check if address is being double freed
-        if (current->next == NULL && current->prev == NULL && freeMemoryBlock != current) {
-            current->next = freeMemoryBlock;
-            current->prev = NULL;
-            // maintain dll property
-            if (freeMemoryBlock != NULL){
-                freeMemoryBlock->prev = current;
-            }
-            freeMemoryBlock = current;
-        }
+        current->next = freeMemoryBlock;
+        freeMemoryBlock = current;
     } else{
-        cerr << "Invalid address for free\n";
+        cerr << "Invalid Address for free\n";
     }
 }
 
-template<class T, unsigned int MAX_LIVE_OBJECTS>
+// size of this class has to be >= size of a pointer. i.e. unsigned long
+class testclass {
+    unsigned long i;
+    unsigned long j;
+};
+
+template<class T, int MAX_LIVE_OBJECTS>
 void MemoryPool<T, MAX_LIVE_OBJECTS>::printFreeBlocks() {
     struct Addr * temp = freeMemoryBlock;
     printf("free Addresses: [ ");
@@ -99,10 +89,6 @@ void MemoryPool<T, MAX_LIVE_OBJECTS>::printFreeBlocks() {
     }
     printf("]\n");
 }
-
-class testclass {
-    int i;
-};
 
 int main() {
     MemoryPool<testclass, 5> mem;
@@ -135,7 +121,7 @@ int main() {
             mem.printFreeBlocks();
         }
         //else {
-        //    cout << "Give command \"y\" to allocate a chunk and \"z <hex addr>\" to free (T*) addr\n\n";
+        //   cout << "Give command \"y\" to allocate a chunk and \"z <hex addr>\" to free (T*) addr\n\n";
         //}
     }
 }

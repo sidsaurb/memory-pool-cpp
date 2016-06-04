@@ -31,7 +31,6 @@ class MemoryPool {
         struct Addr* freeMemoryBlock;
     public:
         MemoryPool();
-        ~MemoryPool();
         void printFreeBlocks();
         std::tuple<T*, bool> alloc();
         void my_free(T * ptr);
@@ -44,11 +43,6 @@ MemoryPool<T,MAX_LIVE_OBJECTS>::MemoryPool() : freeMemoryBlock(NULL) {
         current->next = freeMemoryBlock;
         freeMemoryBlock = current;
     }
-}
-
-template<class T, int MAX_LIVE_OBJECTS>
-MemoryPool<T, MAX_LIVE_OBJECTS>::~MemoryPool(){
-    free(memoryBlock);
 }
 
 template<class T, int MAX_LIVE_OBJECTS>
